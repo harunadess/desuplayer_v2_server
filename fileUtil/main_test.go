@@ -1,4 +1,4 @@
-package fileUtil
+package fileutil
 
 import (
 	"testing"

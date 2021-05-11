@@ -1,10 +1,12 @@
-package fileIO
+package fileio
 
 import (
 	"encoding/json"
 	"io/fs"
 	"log"
 	"os"
+
+	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 )
 
 // WriteToJSON writes the specified interface to a JSON file
@@ -29,4 +31,21 @@ func WriteToJSON(a interface{}, fp string) bool {
 		return false
 	}
 	return true
+}
+
+func ReadFromJSON(fp string) (directoryscaper.MusicLibrary, error) {
+	file, err := os.ReadFile(fp)
+	if err != nil {
+		log.Println("failed to read file ", err)
+		return nil, err
+	}
+
+	JSONData := make(directoryscaper.MusicLibrary)
+	err = json.Unmarshal(file, &JSONData)
+	if err != nil {
+		log.Println("failed to unmarshal json ", err)
+		return nil, err
+	}
+
+	return JSONData, nil
 }
