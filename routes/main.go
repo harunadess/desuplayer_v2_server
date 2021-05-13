@@ -42,7 +42,7 @@ func musicGetAll(w http.ResponseWriter, r *http.Request) {
 		log.Println("error getting music library ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		// todo: better handling
-		w.Write([]byte(""))
+		w.Write([]byte("error getting music library"))
 		return
 	}
 	// marshal to json before send
@@ -50,7 +50,7 @@ func musicGetAll(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("error converting music library to json ", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(""))
+		w.Write([]byte("error converting music library to json"))
 		return
 	}
 	w.Write(jsonifiedLib)
@@ -59,15 +59,14 @@ func musicGetAll(w http.ResponseWriter, r *http.Request) {
 func musicGetSingle(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	key := query.Get("key")
-	fmt.Printf("key:%v\n", key)
+	log.Printf("musicGetSingle -> key:%v\n", key)
 
-	// filePath := "/mnt/d/Users/Jorta/Music/Alestorm/Back Through Time (Limited Edition)/01 - Back Through Time.mp3"
-	// filePath := "D:\\Users\\Jorta\\Music/Tanooki Suit\\Kosmonaut (FLAC)\\Tanuki - Kosmonaut . Diver - 01 Kosmonaut.flac"
-	// bs, err := fileutil.ReadSingleFile(filePath)
 	bs, err := library.GetFromLibrary(key)
 	if err != nil {
 		log.Printf("error getting track %v: %v", key, err)
-		fmt.Fprintf(w, "failed to get file %v\n", key)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("error getting track " + err.Error()))
+		return
 	}
 	w.Write(bs)
 }
