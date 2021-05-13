@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
-	"github.com/jordanjohnston/desuplayer_v2/fileutil"
+	"github.com/jordanjohnston/desuplayer_v2/library"
 )
 
 type requestHandler func(w http.ResponseWriter, r *http.Request)
@@ -34,9 +34,6 @@ func SetUpRequestHandlers(m *http.ServeMux) {
 }
 
 func musicGetAll(w http.ResponseWriter, r *http.Request) {
-	// todo: move to part of custom middleware
-	// w.Header().Add("Access-Control-Allow-Origin", "http://localhost:8080")
-
 	query := r.URL.Query()
 	baseDir := query.Get("musicDir")
 
@@ -61,18 +58,16 @@ func musicGetAll(w http.ResponseWriter, r *http.Request) {
 
 func musicGetSingle(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	track := query.Get("track")
-	artist := query.Get("artist")
-	fmt.Printf("track:%v artist:%v\n", track, artist)
+	key := query.Get("key")
+	fmt.Printf("key:%v\n", key)
 
 	// filePath := "/mnt/d/Users/Jorta/Music/Alestorm/Back Through Time (Limited Edition)/01 - Back Through Time.mp3"
-	filePath := "/mnt/d/Users/Jorta/Music/Tanooki Suit/Kosmonaut (FLAC)/Tanuki - Kosmonaut . Diver - 01 Kosmonaut.flac"
-	bs, err := fileutil.ReadSingleFile(filePath)
+	// filePath := "D:\\Users\\Jorta\\Music/Tanooki Suit\\Kosmonaut (FLAC)\\Tanuki - Kosmonaut . Diver - 01 Kosmonaut.flac"
+	// bs, err := fileutil.ReadSingleFile(filePath)
+	bs, err := library.GetFromLibrary(key)
 	if err != nil {
-		log.Printf("error getting track %v: %v", track, err)
-		fmt.Fprintf(w, "failed to get file %v\n", track)
+		log.Printf("error getting track %v: %v", key, err)
+		fmt.Fprintf(w, "failed to get file %v\n", key)
 	}
-	// TODO: revisit this - this could have been messing up your CORS
-	// w.Header().Add("Access-Control-Allow-Origin", "http://localhost:8080")
 	w.Write(bs)
 }

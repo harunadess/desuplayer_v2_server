@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jordanjohnston/desuplayer_v2/library"
 	"github.com/jordanjohnston/desuplayer_v2/middleware"
 	"github.com/jordanjohnston/desuplayer_v2/routes"
 )
@@ -26,6 +27,7 @@ func handleRequests() {
 	mux := http.NewServeMux()
 	handler := middleware.CustomMiddleware(mux)
 	routes.SetUpRequestHandlers(mux)
+	library.LoadLibrary()
 	log.Println("desuplayer v2 now listening on http://127.0.0.1:" + serverPort)
 	log.Fatal(http.ListenAndServe(":"+serverPort, handler))
 }
