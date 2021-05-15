@@ -9,6 +9,16 @@ import (
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 )
 
+var workingDirectory string
+
+func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Println("failed to get working directory ", err)
+	}
+	workingDirectory = wd
+}
+
 // WriteToJSON writes the specified interface to a JSON file
 func WriteToJSON(a interface{}, fp string) bool {
 	JSON, err := json.Marshal(a)
@@ -25,7 +35,8 @@ func WriteToJSON(a interface{}, fp string) bool {
 		}
 	}
 
-	err = os.WriteFile(fp, JSON, fs.FileMode(os.O_WRONLY))
+	absFp := workingDirectory + fp
+	err = os.WriteFile(absFp, JSON, fs.FileMode(os.O_WRONLY))
 	if err != nil {
 		log.Println("failed to write file ", err)
 		return false
@@ -34,7 +45,8 @@ func WriteToJSON(a interface{}, fp string) bool {
 }
 
 func ReadFromJSON(fp string) (directoryscaper.MusicLibrary, error) {
-	file, err := os.ReadFile(fp)
+	absFp := workingDirectory + fp
+	file, err := os.ReadFile(absFp)
 	if err != nil {
 		log.Println("failed to read file ", err)
 		return nil, err

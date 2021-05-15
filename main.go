@@ -20,7 +20,6 @@ func init() {
 
 func main() {
 	handleRequests()
-	// todo: check if library.json, if exists -> read from that
 }
 
 func handleRequests() {
@@ -28,6 +27,6 @@ func handleRequests() {
 	handler := middleware.CustomMiddleware(mux)
 	routes.SetUpRequestHandlers(mux)
 	library.LoadLibrary()
-	log.Println("desuplayer v2 now listening on http://127.0.0.1:" + serverPort)
+	log.Println("desuplayer v2 now listening on http://localhost:" + serverPort)
 	log.Fatal(http.ListenAndServe(":"+serverPort, handler))
 }
