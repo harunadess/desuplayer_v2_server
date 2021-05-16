@@ -24,19 +24,19 @@ func LoadLibrary() {
 // GetFromLibrary gets a single track from the library
 func GetFromLibrary(key string) ([]byte, error) {
 	if library == nil {
-		return []byte{}, errors.New("library not initialised (library was nil)")
+		return []byte{}, errors.New("library not initialised (no library file found)")
 	}
 
 	file, ok := library[key]
 	if !ok {
 		log.Println("file not found in library (invalid key)")
-		return []byte{}, errors.New("file not found in library (invalid key)")
+		return []byte{}, errors.New("file not found in library")
 	}
 
 	fileContents, err := fileutil.ReadSingleFile(file.Path)
 	if err != nil {
-		log.Println("error reading file", err)
-		return []byte{}, errors.New("error reading file (io error)")
+		log.Println("error reading file (io error)", err)
+		return []byte{}, errors.New("error reading file")
 	}
 	return fileContents, nil
 }

@@ -77,7 +77,14 @@ func buildMusicFile(meta tag.Metadata, path string, getPics bool) MusicFile {
 
 // GetAllInDirectory gets all music files in the specified base directory
 // note: this is extremely slow on wsl
-func GetAllInDirectory(baseDir string) (MusicLibrary, error) {
+func GetAllInDirectory(baseDir string, getPics bool) (MusicLibrary, error) {
+	if getPics {
+		return getAllInDirectory(baseDir)
+	}
+	return getAllInDirectoryNoPhotos(baseDir)
+}
+
+func getAllInDirectory(baseDir string) (MusicLibrary, error) {
 	log.Println("---- start of GetAllInDirectory")
 	log.Println(baseDir)
 	filePaths, err := getAllMusicFilePaths(baseDir)
@@ -88,9 +95,9 @@ func GetAllInDirectory(baseDir string) (MusicLibrary, error) {
 	musicLibrary := make(MusicLibrary)
 
 	for _, path := range filePaths {
-		meta := readFileMetaData(path, false)
+		meta := readFileMetaData(path)
 		if meta != nil {
-			mf := buildMusicFile(meta, path, false)
+			mf := buildMusicFile(meta, path, true)
 			musicLibrary[mf.Key] = mf
 		} else {
 			// we don't have any meta data :c
@@ -127,7 +134,7 @@ func getAllMusicFilePaths(baseDir string) ([]string, error) {
 	return files, err
 }
 
-func readFileMetaData(path string, getPic bool) tag.Metadata {
+func readFileMetaData(path string) tag.Metadata {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Printf("failed to read file %v: %v", path, err)
@@ -142,37 +149,31 @@ func readFileMetaData(path string, getPic bool) tag.Metadata {
 	return meta
 }
 
-func GetAllInDirectoryInline(baseDir string) (MusicLibrary, error) {
+func getAllInDirectoryNoPhotos(baseDir string) (MusicLibrary, error) {
 	log.Println("---- start of GetAllInDirectory")
 	log.Println(baseDir)
+	filePaths, err := getAllMusicFilePaths(baseDir)
+	if err != nil {
+		log.Println("error reading files in directory ", err)
+	}
 
 	musicLibrary := make(MusicLibrary)
 
-	err := filepath.WalkDir(baseDir, func(path string, file fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !file.IsDir() {
-			for _, v := range acceptableFileTypes {
-				if filepath.Ext(path) == v {
-					meta := readFileMetaData(path, false)
-					if meta == nil {
-						musicFile := MusicFile{
-							Path: path,
-							Key:  uuid.New().String(),
-						}
-						musicLibrary[musicFile.Key] = musicFile
-					} else {
-						musicFile := buildMusicFile(meta, path, false)
-						musicLibrary[musicFile.Key] = musicFile
-					}
-				}
+	for _, path := range filePaths {
+		meta := readFileMetaData(path)
+		if meta != nil {
+			mf := buildMusicFile(meta, path, false)
+			musicLibrary[mf.Key] = mf
+		} else {
+			// we don't have any meta data :c
+			mf := MusicFile{
+				Path: path,
+				Key:  uuid.New().String(),
 			}
+			musicLibrary[mf.Key] = mf
 		}
-		return nil
-	})
+	}
 
 	log.Println("---- end of GetAllInDirectory")
-	return musicLibrary, err
+	return musicLibrary, nil
 }
