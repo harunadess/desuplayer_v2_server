@@ -6,13 +6,12 @@ import (
 
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 	"github.com/jordanjohnston/desuplayer_v2/fileio"
-	"github.com/jordanjohnston/desuplayer_v2/fileutil"
 )
 
 var library directoryscaper.MusicLibrary
 
 func LoadLibrary() {
-	data, err := fileio.ReadFromJSON("/library.json")
+	data, err := fileio.ReadMusicLibraryFromJSON("/library.json")
 	if err != nil {
 		return
 	}
@@ -33,7 +32,7 @@ func GetFromLibrary(key string) ([]byte, error) {
 		return []byte{}, errors.New("file not found in library")
 	}
 
-	fileContents, err := fileutil.ReadSingleFile(file.Path)
+	fileContents, err := fileio.ReadSingleFile(file.Path)
 	if err != nil {
 		log.Println("error reading file (io error)", err)
 		return []byte{}, errors.New("error reading file")

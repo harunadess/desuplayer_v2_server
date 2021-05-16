@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
-	"github.com/jordanjohnston/desuplayer_v2/fileutil"
+	"github.com/jordanjohnston/desuplayer_v2/fileio"
 	"github.com/jordanjohnston/desuplayer_v2/library"
 	"github.com/jordanjohnston/desuplayer_v2/routes/util"
 )
@@ -46,7 +46,7 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 }
 
 func getLibrary(w http.ResponseWriter, r *http.Request) {
-	file, err := fileutil.ReadSingleFile("./library.json")
+	file, err := fileio.ReadSingleFile("/library.json")
 	if err != nil {
 		log.Printf("error getting library: %v", err)
 		if strings.Contains(err.Error(), "cannot find") {

@@ -26,7 +26,7 @@ func TestWriteToJSON(t *testing.T) {
 
 func TestReadFromJSON(t *testing.T) {
 	fp := "/library.json"
-	data, err := ReadFromJSON(fp)
+	data, err := ReadMusicLibraryFromJSON(fp)
 	if err != nil {
 		t.Error(err)
 		return
