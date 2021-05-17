@@ -18,14 +18,14 @@ func TestWriteToJSON(t *testing.T) {
 
 	fmt.Println("num files", len(files))
 
-	success := WriteToJSON(files, fp)
+	success := WriteToJSON(files, AbsPath(fp))
 	if !success {
 		t.Error("failed to write file")
 	}
 }
 
 func TestReadFromJSON(t *testing.T) {
-	fp := "/library.json"
+	fp := "../library.json"
 	data, err := ReadMusicLibraryFromJSON(fp)
 	if err != nil {
 		t.Error(err)

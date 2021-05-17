@@ -10,13 +10,25 @@ import (
 
 var library directoryscaper.MusicLibrary
 
+func UnloadLibrary() {
+	library = nil
+}
+
 func LoadLibrary() {
-	data, err := fileio.ReadMusicLibraryFromJSON("/library.json")
+	data, err := fileio.ReadMusicLibraryFromJSON(fileio.AbsPath("/library.json"))
 	if err != nil {
 		return
 	}
 
 	library = data
+}
+
+func SetLibrary(lib directoryscaper.MusicLibrary) {
+	library = lib
+}
+
+func GetLibrary() directoryscaper.MusicLibrary {
+	return library
 }
 
 // todo: refactor errors

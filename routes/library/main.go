@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 	"github.com/jordanjohnston/desuplayer_v2/fileio"
@@ -24,8 +23,11 @@ func Routes() map[string]util.RequestHandler {
 func buildLibrary(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	baseDir := query.Get("musicDir")
+	withImages := query.Get("images")
+	getImages := withImages == "true"
 
-	musicLibrary, err := directoryscaper.GetAllInDirectory(baseDir, true)
+	library.UnloadLibrary()
+	musicLibrary, err := directoryscaper.GetAllInDirectory(baseDir, getImages)
 	if err != nil {
 		log.Println("error getting music library ", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -33,7 +35,7 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("error getting music library"))
 		return
 	}
-	library.LoadLibrary()
+	library.SetLibrary(musicLibrary)
 
 	jsonifiedLib, err := json.Marshal(musicLibrary)
 	if err != nil {
@@ -43,20 +45,28 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(jsonifiedLib)
+	writeLibraryToJSON(musicLibrary)
+}
+
+func writeLibraryToJSON(library directoryscaper.MusicLibrary) {
+	fileio.WriteToJSON(library, fileio.AbsPath("/library.json"))
 }
 
 func getLibrary(w http.ResponseWriter, r *http.Request) {
-	file, err := fileio.ReadSingleFile("/library.json")
-	if err != nil {
-		log.Printf("error getting library: %v", err)
-		if strings.Contains(err.Error(), "cannot find") {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("could not find library file - run 'build library' again." + err.Error()))
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("error getting track " + err.Error()))
-		}
+	lib := library.GetLibrary()
+	if lib == nil {
+		log.Println("library does not exist (need build)")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("library does not exist. please build library first."))
 		return
 	}
-	w.Write(file)
+	jsonifiedLib, err := json.Marshal(lib)
+	if err != nil {
+		log.Println("error converting music library to json ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("error converting music library to json"))
+		return
+	}
+	log.Println("jsonifiedLib len ", len(jsonifiedLib))
+	w.Write(jsonifiedLib)
 }

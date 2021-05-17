@@ -7,7 +7,7 @@ import (
 
 func TestGetAllInDirectory(t *testing.T) {
 	const baseDir string = "/mnt/d/Users/Jorta/Music"
-	files, err := getAllInDirectory(baseDir)
+	files, err := getAllInDirectoryWithImages(baseDir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -21,7 +21,7 @@ func TestGetAllInDirectory(t *testing.T) {
 
 func TestGetAllInDirectoryNoPhotos(t *testing.T) {
 	const baseDir string = "/mnt/d/Users/Jorta/Music"
-	files, err := getAllInDirectoryNoPhotos(baseDir)
+	files, err := getAllInDirectoryNoImages(baseDir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -36,7 +36,7 @@ func TestGetAllInDirectoryNoPhotos(t *testing.T) {
 func BenchmarkGetAllInDirectory(b *testing.B) {
 	const baseDir string = "/mnt/d/Users/Jorta/Music"
 	for i := 0; i < b.N; i++ {
-		files, err := getAllInDirectory(baseDir)
+		files, err := getAllInDirectoryWithImages(baseDir)
 		if err != nil {
 			b.Error(err)
 			return

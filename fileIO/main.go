@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 )
@@ -19,7 +20,7 @@ func init() {
 	workingDirectory = wd
 }
 
-func absPath(fp string) string {
+func AbsPath(fp string) string {
 	return workingDirectory + fp
 }
 
@@ -33,10 +34,11 @@ func WriteToJSON(a interface{}, path string) bool {
 
 	_, err = os.Lstat(path)
 	if err == nil {
+		log.Printf("removing file %v\n", path)
 		RemoveFile(path)
 	}
 
-	err = os.WriteFile(absPath(path), JSON, fs.FileMode(os.O_WRONLY))
+	err = os.WriteFile(path, JSON, fs.FileMode(os.O_WRONLY))
 	if err != nil {
 		log.Println("failed to write file ", err)
 		return false
@@ -57,7 +59,7 @@ func RemoveFile(path string) error {
 // ReadMusicLibraryFromJSON reads the json file at the specified path and converts it
 // into a directoryscraper.MusicLibrary struct
 func ReadMusicLibraryFromJSON(path string) (directoryscaper.MusicLibrary, error) {
-	file, err := ReadSingleFile(absPath(path))
+	file, err := ReadSingleFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +76,11 @@ func makeLibrary(file []byte) (directoryscaper.MusicLibrary, error) {
 	return library, nil
 }
 
+type chunk struct {
+	bufsize int
+	offset  int64
+}
+
 // ReadSingleFile reads a single file specified by path
 // and returns the bytes read
 func ReadSingleFile(path string) ([]byte, error) {
@@ -82,6 +89,7 @@ func ReadSingleFile(path string) ([]byte, error) {
 		log.Println("error opening file ", path, err)
 		return []byte{}, err
 	}
+	defer file.Close()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -89,13 +97,52 @@ func ReadSingleFile(path string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	bs := make([]byte, fileInfo.Size())
-	n, err := file.Read(bs)
-	if err != nil {
-		log.Println("error reading file ", err)
-		return []byte{}, err
-	}
-	log.Printf("read %v bytes\n", n)
+	bufferSize := 1024 * 1024 * 1024
+	fileSize := int(fileInfo.Size())
+	bs := make([]byte, fileSize)
 
+	concurrency := fileSize / bufferSize
+	chunkSizes := make([]chunk, concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		chunkSizes[i].bufsize = bufferSize
+		chunkSizes[i].offset = int64(bufferSize * i)
+	}
+
+	if remainder := fileSize % bufferSize; remainder != 0 {
+		c := chunk{bufsize: remainder, offset: int64(concurrency * bufferSize)}
+		concurrency++
+		chunkSizes = append(chunkSizes, c)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	log.Println("num go routines: ", concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		go func(chunkSizes []chunk, i int) {
+			defer wg.Done()
+
+			chunk := chunkSizes[i]
+			buffer := make([]byte, chunk.bufsize)
+			bytesRead, err := file.ReadAt(buffer, chunk.offset)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			copy(bs[chunk.offset:], buffer[:bytesRead])
+		}(chunkSizes, i)
+	}
+
+	wg.Wait()
+
+	// old stuff that can't read over ~1GB of data
+	// n, err := file.Read(bs)
+
+	// if err != nil {
+	// 	log.Println("error reading file ", err)
+	// 	return []byte{}, err
+	// }
+	// log.Printf("read %v bytes of %v\n", n, path)
 	return bs, nil
 }

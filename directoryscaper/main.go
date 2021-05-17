@@ -13,11 +13,8 @@ import (
 // todo: there is no wav, need to fork taglib and write yours
 var acceptableFileTypes []string = []string{".mp3", ".flac", ".m4a" /*".wav",*/, ".ogg", ".alac", ".m4p"}
 
-// In memory music library for quicker lookup
+// MusicLibrary is a map of a MusicFile's uuid to itself
 type MusicLibrary map[string]MusicFile
-
-// Array of MusicFiles for retrieving library from json
-type MusicLibraryRefresh []MusicFile
 
 // Struct to hold information about music files.
 type MusicFile struct {
@@ -77,15 +74,15 @@ func buildMusicFile(meta tag.Metadata, path string, getPics bool) MusicFile {
 
 // GetAllInDirectory gets all music files in the specified base directory
 // note: this is extremely slow on wsl
-func GetAllInDirectory(baseDir string, getPics bool) (MusicLibrary, error) {
-	if getPics {
-		return getAllInDirectory(baseDir)
+func GetAllInDirectory(baseDir string, getImages bool) (MusicLibrary, error) {
+	if getImages {
+		return getAllInDirectoryWithImages(baseDir)
 	}
-	return getAllInDirectoryNoPhotos(baseDir)
+	return getAllInDirectoryNoImages(baseDir)
 }
 
-func getAllInDirectory(baseDir string) (MusicLibrary, error) {
-	log.Println("---- start of GetAllInDirectory")
+func getAllInDirectoryWithImages(baseDir string) (MusicLibrary, error) {
+	log.Println("---- start of getAllInDirectoryWithImages")
 	log.Println(baseDir)
 	filePaths, err := getAllMusicFilePaths(baseDir)
 	if err != nil {
@@ -107,9 +104,10 @@ func getAllInDirectory(baseDir string) (MusicLibrary, error) {
 			}
 			musicLibrary[mf.Key] = mf
 		}
+
 	}
 
-	log.Println("---- end of GetAllInDirectory")
+	log.Println("---- end of getAllInDirectoryWithImages")
 	return musicLibrary, nil
 }
 
@@ -149,8 +147,8 @@ func readFileMetaData(path string) tag.Metadata {
 	return meta
 }
 
-func getAllInDirectoryNoPhotos(baseDir string) (MusicLibrary, error) {
-	log.Println("---- start of GetAllInDirectory")
+func getAllInDirectoryNoImages(baseDir string) (MusicLibrary, error) {
+	log.Println("---- start of getAllInDirectoryNoPhotos")
 	log.Println(baseDir)
 	filePaths, err := getAllMusicFilePaths(baseDir)
 	if err != nil {
@@ -174,6 +172,6 @@ func getAllInDirectoryNoPhotos(baseDir string) (MusicLibrary, error) {
 		}
 	}
 
-	log.Println("---- end of GetAllInDirectory")
+	log.Println("---- end of getAllInDirectoryNoPhotos")
 	return musicLibrary, nil
 }
