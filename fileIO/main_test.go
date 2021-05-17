@@ -1,44 +1,35 @@
 package fileio
 
 import (
-	"fmt"
 	"testing"
-
-	"github.com/jordanjohnston/desuplayer_v2/directoryscaper"
 )
 
-func TestWriteToJSON(t *testing.T) {
-	const baseDir = "/mnt/d/Jorta/Music"
-	files, err := directoryscaper.GetAllInDirectory(baseDir, true)
-	if err != nil {
-		t.Error(err)
-	}
+func TestAbsPath(t *testing.T) {
+	const absPath = "/mnt/d/Users/Jorta/Documents/Coding/go/src/github.com/jordanjohnston/desuplayer_v2/fileio"
+	const path = "/library.json"
+	want := absPath + path
 
-	fp := "/library.json"
-
-	fmt.Println("num files", len(files))
-
-	success := WriteToJSON(files, AbsPath(fp))
-	if !success {
-		t.Error("failed to write file")
+	if got := AbsPath(path); got != want {
+		t.Errorf("Absolute path did not match: got %v, want %v\n", got, want)
 	}
 }
 
-func TestReadFromJSON(t *testing.T) {
-	fp := "../library.json"
-	data, err := ReadMusicLibraryFromJSON(fp)
+func TestWriteToJSON(t *testing.T) {
+	const baseDir = "/mnt/d/Users/Jorta/Music"
+	fileTypesA := []string{".mp3", ".flac"}
+	fileTypesB := []string{".MP3", ".FLAC"}
+
+	pathsA, err := ScrapeDirectory(baseDir, fileTypesA)
 	if err != nil {
 		t.Error(err)
-		return
 	}
 
-	if data == nil {
-		t.Error("library was nil")
-		return
+	pathsB, err := ScrapeDirectory(baseDir, fileTypesB)
+	if err != nil {
+		t.Error(err)
 	}
 
-	for k, v := range data {
-		fmt.Println(k, v)
-		break
+	if len(pathsA) != len(pathsB) {
+		t.Error("len(pathsA) != len(pathsB)")
 	}
 }

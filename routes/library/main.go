@@ -31,7 +31,6 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("error getting music library ", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		// todo: better handling
 		w.Write([]byte("error getting music library"))
 		return
 	}
@@ -45,7 +44,7 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(jsonifiedLib)
-	writeLibraryToJSON(musicLibrary)
+	go writeLibraryToJSON(musicLibrary)
 }
 
 func writeLibraryToJSON(library directoryscaper.MusicLibrary) {

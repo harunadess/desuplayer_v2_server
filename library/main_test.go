@@ -2,6 +2,10 @@ package library
 
 import "testing"
 
-func TestLoadLibrary(t *testing.T) {
-	LoadLibrary()
+func TestBuildLibrary(t *testing.T) {
+	const basePath = "/mnt/d/Users/Jorta/Music"
+	err := BuildLibrary(basePath)
+	if err != nil {
+		t.Error(err)
+	}
 }
