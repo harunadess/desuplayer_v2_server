@@ -211,3 +211,74 @@ func LoadLibrary() {
 func AsJson() ([]byte, error) {
 	return json.Marshal(*library)
 }
+
+func GetSong(key string) (BasicMusicFile, bool) {
+	song, ok := library.Songs[key]
+	return song, ok
+}
+
+func GetArtist(key string) ([]BasicMusicFile, bool) {
+	artist, ok := library.Artists[key]
+	if !ok {
+		return []BasicMusicFile{}, ok
+	}
+	songs := make([]BasicMusicFile, len(artist))
+	for i, v := range artist {
+		songs[i] = library.Songs[v]
+	}
+	return songs, ok
+}
+
+func GetAlbum(key string) ([]BasicMusicFile, bool) {
+	album, ok := library.Albums[key]
+	if !ok {
+		return []BasicMusicFile{}, ok
+	}
+	songs := make([]BasicMusicFile, len(album))
+	for i, v := range album {
+		songs[i] = library.Songs[v]
+	}
+	return songs, ok
+}
+
+func GetGenre(key string) ([]BasicMusicFile, bool) {
+	genre, ok := library.Genres[key]
+	if !ok {
+		return []BasicMusicFile{}, ok
+	}
+	songs := make([]BasicMusicFile, len(genre))
+	for i, v := range genre {
+		songs[i] = library.Songs[v]
+	}
+	return songs, ok
+}
+
+func GetAllArtists() ([]string, bool) {
+	artists := make([]string, len(library.Artists))
+	i := 0
+	for k := range library.Artists {
+		artists[i] = k
+		i++
+	}
+	return artists, true
+}
+
+func GetAllAlbums() ([]string, bool) {
+	albums := make([]string, len(library.Albums))
+	i := 0
+	for k := range library.Albums {
+		albums[i] = k
+		i++
+	}
+	return albums, true
+}
+
+func GetAllGenres() ([]string, bool) {
+	genres := make([]string, len(library.Genres))
+	i := 0
+	for k := range library.Genres {
+		genres[i] = k
+		i++
+	}
+	return genres, true
+}
