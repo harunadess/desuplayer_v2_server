@@ -10,11 +10,13 @@ import (
 	"sync"
 )
 
+const concurrentBufferSize int = (1024 * 1024 * 512)
+
 var workingDirectory string
 
 type chunk struct {
-	bufsize int
-	offset  int64
+	bufferSize int
+	offset     int64
 }
 
 func init() {
@@ -86,26 +88,6 @@ func RemoveFile(path string) error {
 	return nil
 }
 
-// // ReadMusicLibraryFromJSON reads the json file at the specified path and converts it
-// // into a directoryscraper.MusicLibrary struct
-// func ReadMusicLibraryFromJSON(path string) (directoryscaper.MusicLibrary, error) {
-// 	file, err := ReadSingleFile(path)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return makeLibrary(file)
-// }
-
-// func makeLibrary(file []byte) (directoryscaper.MusicLibrary, error) {
-// 	library := make(directoryscaper.MusicLibrary)
-// 	err := json.Unmarshal(file, &library)
-// 	if err != nil {
-// 		log.Println("failed to unmarshal json ", err)
-// 		return nil, err
-// 	}
-// 	return library, nil
-// }
-
 // ReadSingleFile reads a single file specified by path
 // and returns the bytes read
 func ReadSingleFile(path string) ([]byte, error) {
@@ -122,7 +104,7 @@ func ReadSingleFile(path string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	bufferSize := 1024 * 1024 * 1024
+	bufferSize := concurrentBufferSize
 	fileSize := int(fileInfo.Size())
 	bs := make([]byte, fileSize)
 
@@ -130,26 +112,33 @@ func ReadSingleFile(path string) ([]byte, error) {
 	chunkSizes := make([]chunk, concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		chunkSizes[i].bufsize = bufferSize
+		chunkSizes[i].bufferSize = bufferSize
 		chunkSizes[i].offset = int64(bufferSize * i)
 	}
 
 	if remainder := fileSize % bufferSize; remainder != 0 {
-		c := chunk{bufsize: remainder, offset: int64(concurrency * bufferSize)}
+		c := chunk{bufferSize: remainder, offset: int64(concurrency * bufferSize)}
 		concurrency++
 		chunkSizes = append(chunkSizes, c)
 	}
 
+	return readFileConcurrent(concurrency, file, bs, chunkSizes)
+}
+
+// readFileConcurrent reads a file in chunks, each handled
+// by a separate go routine. The input bs is then returned
+// with the contents of the file, along with nil on success
+// or an error if one occurs.
+func readFileConcurrent(concurrency int, file *os.File, bs []byte, chunkSizes []chunk) ([]byte, error) {
 	var wg sync.WaitGroup
 	wg.Add(concurrency)
-	log.Println("num go routines: ", concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		go func(chunkSizes []chunk, i int) {
+		go func(chunks []chunk, id int) {
 			defer wg.Done()
 
-			chunk := chunkSizes[i]
-			buffer := make([]byte, chunk.bufsize)
+			chunk := chunks[id]
+			buffer := make([]byte, chunk.bufferSize)
 			bytesRead, err := file.ReadAt(buffer, chunk.offset)
 			if err != nil {
 				log.Println(err)
@@ -161,13 +150,5 @@ func ReadSingleFile(path string) ([]byte, error) {
 
 	wg.Wait()
 
-	// old stuff that can't read over ~1GB of data
-	// n, err := file.Read(bs)
-
-	// if err != nil {
-	// 	log.Println("error reading file ", err)
-	// 	return []byte{}, err
-	// }
-	// log.Printf("read %v bytes of %v\n", n, path)
 	return bs, nil
 }

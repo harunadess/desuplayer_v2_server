@@ -1,6 +1,7 @@
 package library
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 
@@ -74,10 +75,13 @@ type MusicFile struct {
 
 var library *MusicLibrary
 
+// UnloadLibrary clears the current library
 func UnloadLibrary() {
 	library = nil
 }
 
+// BuildLibrary creates the library using the basePath
+// passed in.
 func BuildLibrary(basePath string) error {
 	log.Println("scraping directory:", basePath)
 	paths, err := fileio.ScrapeDirectory(basePath, tags.AcceptableFileTypes)
@@ -177,45 +181,33 @@ func addBasicToLibrary(metaData tag.Metadata, path string) {
 	library.Songs[basicFile.Key] = basicFile
 }
 
+// SaveLibrary saves the library as JSON
 func SaveLibrary() error {
 	return fileio.WriteToJSON(*library, fileio.AbsPath("/library.json"))
 }
 
-// todo: this func
+// LoadLibrary loads the library from it's JSON file.
 func LoadLibrary() {
-	// data, err := fileio.ReadMusicLibraryFromJSON(fileio.AbsPath("/library.json"))
-	// if err != nil {
-	// 	return
-	// }
+	file, err := fileio.ReadSingleFile(fileio.AbsPath("/library.json"))
+	if err != nil {
+		log.Println("error reading library file ", err)
+		return
+	}
+	library = &MusicLibrary{
+		Artists:   make(ArtistMap),
+		Albums:    make(AlbumMap),
+		Genres:    make(GenreMap),
+		Playlists: make(PlaylistMap),
+		Songs:     make(SongMap),
+	}
 
-	// library = data
+	err = json.Unmarshal(file, library)
+	if err != nil {
+		log.Println("error unmarshalling json ", err)
+	}
 }
 
-// func SetLibrary(lib directoryscaper.MusicLibrary) {
-// 	library = lib
-// }
-
-// func GetLibrary() directoryscaper.MusicLibrary {
-// 	return library
-// }
-
-// // todo: refactor errors
-// // GetFromLibrary gets a single track from the library
-// func GetFromLibrary(key string) ([]byte, error) {
-// 	if library == nil {
-// 		return []byte{}, errors.New("library not initialised (no library file found)")
-// 	}
-
-// 	file, ok := library[key]
-// 	if !ok {
-// 		log.Println("file not found in library (invalid key)")
-// 		return []byte{}, errors.New("file not found in library")
-// 	}
-
-// 	fileContents, err := fileio.ReadSingleFile(file.Path)
-// 	if err != nil {
-// 		log.Println("error reading file (io error)", err)
-// 		return []byte{}, errors.New("error reading file")
-// 	}
-// 	return fileContents, nil
-// }
+// AsJson returns the library as JSON
+func AsJson() ([]byte, error) {
+	return json.Marshal(*library)
+}

@@ -1,6 +1,8 @@
 package library
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestBuildLibrary(t *testing.T) {
 	const basePath = "/mnt/d/Users/Jorta/Music"
