@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/dhowden/tag"
 	"github.com/google/uuid"
@@ -11,65 +12,66 @@ import (
 	"github.com/jordanjohnston/desuplayer_v2/tags"
 )
 
-// MusicLibrary is a structure holding the different types of mappings
-// to individual music files
+// As a library
+// We want to store limited information
+// i.e. we don't want to have to re-store like 10000000000 MB of data
+// So, we should have a full library :tm: and a basic library
+// basic library just contains the SongMap
+
+// When we load in the full library, we then create a full library
+// by running some funcs to fill out the rest of the things
+// since that is basically a bunch of duplication otherwise
+
+// As an artist, we want to have a list of albums/songs
+// As an album, we want to have the title, artist, year, album art
+// maybe this would get around the mass fuckery
+// of not being able to do anything with images
+
+// MusicLibrary holds an array of artists
+// These artists have >= 1 Album
+// These albums contain several songs
+// These songs are each a file
+// Playlists are a list of songs (keys)
+
+// this ain't gonna work because they're slices
+// they should be maps of some identifier to a list
+// not just a list..
 type MusicLibrary struct {
-	Artists   ArtistMap
-	Albums    AlbumMap
-	Genres    GenreMap
-	Playlists PlaylistMap
-	Songs     SongMap
+	Artists   map[string]Artist
+	Playlists map[string][]Song
 }
 
-// ArtistMap is a map of an Artist (string) to a list of MusicFile uuids
-type ArtistMap map[string][]string
-
-// Album is a struct that represents an album
-// Contains Artist and Title
-type Album struct {
-	Artist string
-	Title  string
-}
-
-// AlbumMap is a map of an Album to a list of MusicFile uuids
-type AlbumMap map[string][]string
-
-// GenreMap is a map of a Genre (string) to a list of MusicFile uuids
-type GenreMap map[string][]string
-
-// PlaylistMap is a map of a Playlist to a list of MusicFile uuids
-type PlaylistMap map[string][]string
-
-// SongMap is a map of a MusicFile uuid to a BasicMusicFile
-type SongMap map[string]BasicMusicFile
-
-// BasicMusicFile is a basic representation of a music file
-// and some of the more important attributes
-type BasicMusicFile struct {
-	Album       string
-	Artist      string
-	AlbumArtist string
-	DiscNumber  int
-	FileType    string
-	Genre       string
+type Song struct {
 	Title       string
-	TrackNumber int
+	Discnumber  int
+	Tracknumber int
+	Filetype    string
 	Path        string
 	Key         string
 }
 
-// MusicFile is a more complete representation of a music file
-type MusicFile struct {
-	BasicMusicFile
-	Composer        string
-	FileType        string
-	Format          string
-	Lyrics          string
-	PictureData     []byte
-	PictureMIMEType string
-	TotalTracks     int
-	Year            int
+type Album struct {
+	Title       string
+	Genre       string
+	Picturedata []byte
+	Picturetype string
+	Songs       map[string]Song
 }
+
+type Artist struct {
+	Name   string
+	Albums map[string]Album
+}
+
+const (
+	newAdd = iota
+	existing
+)
+
+// Hierarchy of Generality of Songs
+// Genre -> Artist -> Album -> Song -> SongFile
+// idk if we give a shit about genre tbh
+// other than just meta of the actual album
 
 // todo: there is no wav, need to fork taglib and write yours
 
@@ -91,11 +93,8 @@ func BuildLibrary(basePath string) error {
 	log.Printf("got %v files\n", len(paths))
 
 	library = &MusicLibrary{
-		Artists:   make(ArtistMap),
-		Albums:    make(AlbumMap),
-		Genres:    make(GenreMap),
-		Playlists: make(PlaylistMap),
-		Songs:     make(SongMap),
+		Artists:   make(map[string]Artist),
+		Playlists: make(map[string][]Song),
 	}
 	err = fillLibrary(paths)
 	if err != nil {
@@ -115,7 +114,6 @@ func fillLibrary(paths []string) error {
 		}
 		addBasicToLibrary(metaData, path)
 	}
-
 	err := SaveLibrary()
 	if err != nil {
 		log.Println("failed to save library: ", err)
@@ -124,61 +122,102 @@ func fillLibrary(paths []string) error {
 	return nil
 }
 
-func addUnknownToLibrary(path string) {
-	basicFile := BasicMusicFile{
-		Album:       "Unknown",
-		Artist:      "Unknown",
-		AlbumArtist: "Unknown",
-		DiscNumber:  -1,
-		FileType:    "Unknown", //todo: get filetype from ext
-		Genre:       "Unknown",
-		Title:       "Unknown",
-		TrackNumber: -1,
-		Path:        path,
-		Key:         uuid.NewString(),
+func getArtist(key string, meta tag.Metadata) (Artist, int) {
+	artist, ok := library.Artists[key]
+	returnCode := existing
+	if !ok {
+		returnCode = newAdd
+		artist = Artist{Albums: make(map[string]Album)}
+		if meta == nil {
+			artist.Name = "Unknown"
+		} else {
+			artist.Name = meta.Artist()
+		}
 	}
-	album := (basicFile.Artist + "_" + basicFile.Album)
-	library.Artists[basicFile.Artist] = append(library.Artists[basicFile.Artist], basicFile.Key)
-	library.Albums[album] = append(library.Albums[album], basicFile.Key)
-	library.Artists[basicFile.Artist] = append(library.Artists[basicFile.Artist], basicFile.Key)
-	library.Genres[basicFile.Genre] = append(library.Genres[basicFile.Genre], basicFile.Key)
-	library.Songs[basicFile.Key] = basicFile
+	return artist, returnCode
+}
+
+func getAlbum(artist Artist, key string, meta tag.Metadata) (Album, int) {
+	album, ok := artist.Albums[key]
+	returnCode := existing
+	if !ok {
+		returnCode = newAdd
+		album = Album{
+			Picturedata: []byte{},
+			Picturetype: "",
+			Songs:       make(map[string]Song),
+		}
+		if meta == nil {
+			album.Title = "Unknown"
+			album.Genre = "Unknown"
+		} else {
+			picture := meta.Picture()
+			album.Title = meta.Album()
+			album.Genre = meta.Genre()
+			if picture != nil {
+				album.Picturedata = picture.Data
+				album.Picturetype = picture.MIMEType
+			}
+		}
+	}
+	return album, returnCode
+}
+
+func buildSong(path string, meta tag.Metadata) Song {
+	song := Song{
+		Path: path,
+		Key:  uuid.NewString(),
+	}
+	if meta == nil {
+		pathSplit := strings.Split(path, ".")
+		fType := pathSplit[len(pathSplit)-1]
+		song.Discnumber = 0
+		song.Filetype = strings.ToUpper(fType)
+		song.Title = "Unknown"
+		song.Tracknumber = 0
+	} else {
+		disc, _ := meta.Disc()
+		track, _ := meta.Track()
+		song.Discnumber = disc
+		song.Filetype = string(meta.FileType())
+		song.Title = meta.Title()
+		song.Tracknumber = track
+	}
+	return song
+}
+
+func addUnknownToLibrary(path string) {
+	artistKey := "unknown"
+	albumKey := "unknown_unknown"
+	artist, r := getArtist(artistKey, nil)
+	if r == newAdd {
+		library.Artists[artistKey] = artist
+	}
+	album, r := getAlbum(artist, albumKey, nil)
+	if r == newAdd {
+		artist.Albums[albumKey] = album
+	}
+	song := buildSong(path, nil)
+	album.Songs[song.Key] = song
 }
 
 func addBasicToLibrary(metaData tag.Metadata, path string) {
-	disc, _ := metaData.Disc()
-	track, _ := metaData.Track()
-	basicFile := BasicMusicFile{
-		Album:       metaData.Album(),
-		Artist:      metaData.Artist(),
-		AlbumArtist: metaData.AlbumArtist(),
-		DiscNumber:  disc,
-		FileType:    string(metaData.FileType()),
-		Genre:       metaData.Genre(),
-		Title:       metaData.Title(),
-		TrackNumber: track,
-		Path:        path,
-		Key:         uuid.NewString(),
+	artistKey := sanitizeName(metaData.Artist())
+	albumKey := sanitizeName(metaData.Artist() + "_" + metaData.Album())
+	artist, r := getArtist(artistKey, metaData)
+	if r == newAdd {
+		library.Artists[artistKey] = artist
 	}
-	if basicFile.Album == "" {
-		basicFile.Album = "Unknown"
+	album, r := getAlbum(artist, albumKey, metaData)
+	if r == newAdd {
+		artist.Albums[albumKey] = album
 	}
-	if basicFile.Artist == "" {
-		basicFile.Artist = "Unknown"
-	}
-	if basicFile.AlbumArtist == "" {
-		basicFile.AlbumArtist = ""
-	}
-	if basicFile.Genre == "" {
-		basicFile.Genre = "Unknown"
-	}
+	song := buildSong(path, metaData)
+	album.Songs[song.Key] = song
+}
 
-	album := (basicFile.Artist + "_" + basicFile.Album)
-	library.Artists[basicFile.Artist] = append(library.Artists[basicFile.Artist], basicFile.Key)
-	library.Albums[album] = append(library.Albums[album], basicFile.Key)
-	library.Artists[basicFile.Artist] = append(library.Artists[basicFile.Artist], basicFile.Key)
-	library.Genres[basicFile.Genre] = append(library.Genres[basicFile.Genre], basicFile.Key)
-	library.Songs[basicFile.Key] = basicFile
+func sanitizeName(s string) string {
+	return strings.TrimSpace(strings.ToLower(s))
 }
 
 // SaveLibrary saves the library as JSON
@@ -193,13 +232,7 @@ func LoadLibrary() {
 		log.Println("error reading library file ", err)
 		return
 	}
-	library = &MusicLibrary{
-		Artists:   make(ArtistMap),
-		Albums:    make(AlbumMap),
-		Genres:    make(GenreMap),
-		Playlists: make(PlaylistMap),
-		Songs:     make(SongMap),
-	}
+	library = &MusicLibrary{}
 
 	err = json.Unmarshal(file, library)
 	if err != nil {
@@ -212,73 +245,9 @@ func AsJson() ([]byte, error) {
 	return json.Marshal(*library)
 }
 
-func GetSong(key string) (BasicMusicFile, bool) {
-	song, ok := library.Songs[key]
-	return song, ok
-}
-
-func GetArtist(key string) ([]BasicMusicFile, bool) {
-	artist, ok := library.Artists[key]
-	if !ok {
-		return []BasicMusicFile{}, ok
+func GetAllArtists() map[string]Artist {
+	if library == nil {
+		return make(map[string]Artist)
 	}
-	songs := make([]BasicMusicFile, len(artist))
-	for i, v := range artist {
-		songs[i] = library.Songs[v]
-	}
-	return songs, ok
-}
-
-func GetAlbum(key string) ([]BasicMusicFile, bool) {
-	album, ok := library.Albums[key]
-	if !ok {
-		return []BasicMusicFile{}, ok
-	}
-	songs := make([]BasicMusicFile, len(album))
-	for i, v := range album {
-		songs[i] = library.Songs[v]
-	}
-	return songs, ok
-}
-
-func GetGenre(key string) ([]BasicMusicFile, bool) {
-	genre, ok := library.Genres[key]
-	if !ok {
-		return []BasicMusicFile{}, ok
-	}
-	songs := make([]BasicMusicFile, len(genre))
-	for i, v := range genre {
-		songs[i] = library.Songs[v]
-	}
-	return songs, ok
-}
-
-func GetAllArtists() ([]string, bool) {
-	artists := make([]string, len(library.Artists))
-	i := 0
-	for k := range library.Artists {
-		artists[i] = k
-		i++
-	}
-	return artists, true
-}
-
-func GetAllAlbums() ([]string, bool) {
-	albums := make([]string, len(library.Albums))
-	i := 0
-	for k := range library.Albums {
-		albums[i] = k
-		i++
-	}
-	return albums, true
-}
-
-func GetAllGenres() ([]string, bool) {
-	genres := make([]string, len(library.Genres))
-	i := 0
-	for k := range library.Genres {
-		genres[i] = k
-		i++
-	}
-	return genres, true
+	return library.Artists
 }
