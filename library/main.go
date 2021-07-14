@@ -1,12 +1,18 @@
 package library
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"log"
 	"strings"
 
 	"github.com/dhowden/tag"
+	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/jordanjohnston/desuplayer_v2/fileio"
 	"github.com/jordanjohnston/desuplayer_v2/tags"
@@ -67,6 +73,8 @@ const (
 	newAdd = iota
 	existing
 )
+
+const imageSize = 300
 
 // Hierarchy of Generality of Songs
 // Genre -> Artist -> Album -> Song -> SongFile
@@ -155,12 +163,42 @@ func getAlbum(artist Artist, key string, meta tag.Metadata) (Album, int) {
 			album.Title = meta.Album()
 			album.Genre = meta.Genre()
 			if picture != nil {
-				album.Picturedata = picture.Data
+				album.Picturedata = resizePicture(picture.Data)
 				album.Picturetype = picture.MIMEType
 			}
 		}
 	}
 	return album, returnCode
+}
+
+// todo: break this out into a separate file / helper
+// todo: handle non-square images
+func resizePicture(pictureData []byte) []byte {
+	reader := bytes.NewReader(pictureData)
+	img, format, err := image.Decode(reader)
+	if err != nil {
+		log.Println("failed to decode base64 string", err, format)
+		return []byte{}
+	}
+	resizedImg := imaging.Resize(img, imageSize, imageSize, imaging.CatmullRom)
+
+	var resizedBytes bytes.Buffer
+	switch format {
+	case "jpeg":
+		err = jpeg.Encode(&resizedBytes, resizedImg, nil)
+	case "png":
+		err = png.Encode(&resizedBytes, resizedImg)
+	case "gif":
+		err = gif.Encode(&resizedBytes, resizedImg, nil)
+	default:
+		err = errors.New("unrecognised image format")
+	}
+	if err != nil {
+		log.Println("failed to encode image", err)
+		return []byte{}
+	}
+
+	return resizedBytes.Bytes()
 }
 
 func buildSong(path string, meta tag.Metadata) Song {
