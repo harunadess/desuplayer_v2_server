@@ -14,7 +14,7 @@ const subRoute = "music"
 // TODO: other routes
 func Routes() map[string]util.RequestHandler {
 	return map[string]util.RequestHandler{
-		// util.FormatRoute(util.BaseRoute, subRoute, "getTrack"):      getTrack,
+		util.FormatRoute(util.BaseRoute, subRoute, "getSong"): getSong,
 		// util.FormatRoute(util.BaseRoute, subRoute, "getArtist"):     getArtist,
 		// util.FormatRoute(util.BaseRoute, subRoute, "getAlbum"):      getAlbum,
 		// util.FormatRoute(util.BaseRoute, subRoute, "getGenre"):      getGenre,
@@ -33,20 +33,22 @@ func writeResponse(a interface{}, w http.ResponseWriter) {
 		return
 	}
 	w.Write(bytes)
+	bytes = nil
 }
 
-// func getTrack(w http.ResponseWriter, r *http.Request) {
-// 	query := r.URL.Query()
-// 	track := query.Get("track")
-// 	bs, ok := library.GetSong(track)
-// 	if !ok {
-// 		log.Printf("track does not exist %v", track)
-// 		w.WriteHeader(http.StatusNotFound)
-// 		w.Write([]byte("track not found"))
-// 		return
-// 	}
-// 	writeResponse(bs, w)
-// }
+func getSong(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	track := query.Get("path")
+	bs, ok := library.GetSong(track)
+	if !ok {
+		log.Printf("song does not exist %v", track)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("song not found"))
+		return
+	}
+	w.Write(bs)
+	bs = nil
+}
 
 // func getArtist(w http.ResponseWriter, r *http.Request) {
 // 	query := r.URL.Query()
