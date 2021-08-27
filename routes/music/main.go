@@ -11,6 +11,7 @@ import (
 
 const subRoute = "music"
 
+// TODO: other routes
 func Routes() map[string]util.RequestHandler {
 	return map[string]util.RequestHandler{
 		// util.FormatRoute(util.BaseRoute, subRoute, "getTrack"):      getTrack,
@@ -87,7 +88,7 @@ func writeResponse(a interface{}, w http.ResponseWriter) {
 // }
 
 func getAllArtists(w http.ResponseWriter, r *http.Request) {
-	bs := library.GetAllArtists()
+	bs := library.GetAllAlbums()
 	writeResponse(bs, w)
 }
 

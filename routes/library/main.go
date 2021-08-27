@@ -20,8 +20,6 @@ func Routes() map[string]util.RequestHandler {
 func buildLibrary(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	basePath := query.Get("musicDir")
-	// withImages := query.Get("images")
-	// getImages := withImages == "true"
 
 	library.UnloadLibrary()
 	err := library.BuildLibrary(basePath)
@@ -32,8 +30,8 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	artists := library.GetAllArtists()
-	jsonifiedResponse, err := json.Marshal(artists)
+	albums := library.GetAllAlbums()
+	jsonifiedResponse, err := json.Marshal(albums)
 	if err != nil {
 		log.Println("error converting music library to json ", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -41,4 +39,7 @@ func buildLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(jsonifiedResponse)
+
+	albums = nil
+	jsonifiedResponse = nil
 }

@@ -1,63 +1,39 @@
 package library
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"image"
-	"image/gif"
-	"image/jpeg"
-	"image/png"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/dhowden/tag"
-	"github.com/disintegration/imaging"
-	"github.com/google/uuid"
 	"github.com/jordanjohnston/desuplayer_v2/fileio"
+	"github.com/jordanjohnston/desuplayer_v2/imageutil"
 	"github.com/jordanjohnston/desuplayer_v2/tags"
 )
 
-// As a library
-// We want to store limited information
-// i.e. we don't want to have to re-store like 10000000000 MB of data
-// So, we should have a full library :tm: and a basic library
-// basic library just contains the SongMap
-
-// When we load in the full library, we then create a full library
-// by running some funcs to fill out the rest of the things
-// since that is basically a bunch of duplication otherwise
-
-// As an artist, we want to have a list of albums/songs
-// As an album, we want to have the title, artist, year, album art
-// maybe this would get around the mass fuckery
-// of not being able to do anything with images
-
-// MusicLibrary holds an array of artists
-// These artists have >= 1 Album
-// These albums contain several songs
-// These songs are each a file
-// Playlists are a list of songs (keys)
-
-// this ain't gonna work because they're slices
-// they should be maps of some identifier to a list
-// not just a list..
+// MusicLibrary holds information about the library
+// It contains a map of keys (artistName_albumTitle) -> Album
+// It also contains a list of sorted keys (aristName_albumTitle)
 type MusicLibrary struct {
-	Artists   map[string]Artist
-	Playlists map[string][]Song
+	Albums       map[string]Album
+	SortedAlbums []string
+	Playlists    map[string][]Song
 }
 
 type Song struct {
 	Title       string
+	Artist      string
 	Discnumber  int
 	Tracknumber int
 	Filetype    string
 	Path        string
-	Key         string
 }
 
 type Album struct {
 	Title       string
+	Artist      string
 	Genre       string
 	Picturedata []byte
 	Picturetype string
@@ -74,12 +50,7 @@ const (
 	existing
 )
 
-const imageSize = 300
-
-// Hierarchy of Generality of Songs
-// Genre -> Artist -> Album -> Song -> SongFile
-// idk if we give a shit about genre tbh
-// other than just meta of the actual album
+const imageSize = 200
 
 // todo: there is no wav, need to fork taglib and write yours
 
@@ -101,7 +72,7 @@ func BuildLibrary(basePath string) error {
 	log.Printf("got %v files\n", len(paths))
 
 	library = &MusicLibrary{
-		Artists:   make(map[string]Artist),
+		Albums:    make(map[string]Album),
 		Playlists: make(map[string][]Song),
 	}
 	err = fillLibrary(paths)
@@ -116,12 +87,14 @@ func fillLibrary(paths []string) error {
 	for _, path := range paths {
 		metaData, err := tags.ReadTags(path)
 		if err != nil {
-			log.Printf("failed to read file %v\n", path)
 			addUnknownToLibrary(path)
 			continue
 		}
 		addBasicToLibrary(metaData, path)
 	}
+
+	createSortedArtistList()
+
 	err := SaveLibrary()
 	if err != nil {
 		log.Println("failed to save library: ", err)
@@ -130,23 +103,8 @@ func fillLibrary(paths []string) error {
 	return nil
 }
 
-func getArtist(key string, meta tag.Metadata) (Artist, int) {
-	artist, ok := library.Artists[key]
-	returnCode := existing
-	if !ok {
-		returnCode = newAdd
-		artist = Artist{Albums: make(map[string]Album)}
-		if meta == nil {
-			artist.Name = "Unknown"
-		} else {
-			artist.Name = meta.Artist()
-		}
-	}
-	return artist, returnCode
-}
-
-func getAlbum(artist Artist, key string, meta tag.Metadata) (Album, int) {
-	album, ok := artist.Albums[key]
+func getAlbum(key string, meta tag.Metadata) (Album, int) {
+	album, ok := library.Albums[key]
 	returnCode := existing
 	if !ok {
 		returnCode = newAdd
@@ -161,9 +119,13 @@ func getAlbum(artist Artist, key string, meta tag.Metadata) (Album, int) {
 		} else {
 			picture := meta.Picture()
 			album.Title = meta.Album()
+			album.Artist = meta.AlbumArtist()
+			if album.Artist == "" {
+				album.Artist = meta.Artist()
+			}
 			album.Genre = meta.Genre()
 			if picture != nil {
-				album.Picturedata = resizePicture(picture.Data)
+				album.Picturedata = imageutil.ResizeImage(picture.Data, imageSize)
 				album.Picturetype = picture.MIMEType
 			}
 		}
@@ -171,40 +133,9 @@ func getAlbum(artist Artist, key string, meta tag.Metadata) (Album, int) {
 	return album, returnCode
 }
 
-// todo: break this out into a separate file / helper
-// todo: handle non-square images
-func resizePicture(pictureData []byte) []byte {
-	reader := bytes.NewReader(pictureData)
-	img, format, err := image.Decode(reader)
-	if err != nil {
-		log.Println("failed to decode base64 string", err, format)
-		return []byte{}
-	}
-	resizedImg := imaging.Resize(img, imageSize, imageSize, imaging.CatmullRom)
-
-	var resizedBytes bytes.Buffer
-	switch format {
-	case "jpeg":
-		err = jpeg.Encode(&resizedBytes, resizedImg, nil)
-	case "png":
-		err = png.Encode(&resizedBytes, resizedImg)
-	case "gif":
-		err = gif.Encode(&resizedBytes, resizedImg, nil)
-	default:
-		err = errors.New("unrecognised image format")
-	}
-	if err != nil {
-		log.Println("failed to encode image", err)
-		return []byte{}
-	}
-
-	return resizedBytes.Bytes()
-}
-
 func buildSong(path string, meta tag.Metadata) Song {
 	song := Song{
 		Path: path,
-		Key:  uuid.NewString(),
 	}
 	if meta == nil {
 		pathSplit := strings.Split(path, ".")
@@ -225,37 +156,63 @@ func buildSong(path string, meta tag.Metadata) Song {
 }
 
 func addUnknownToLibrary(path string) {
-	artistKey := "unknown"
 	albumKey := "unknown_unknown"
-	artist, r := getArtist(artistKey, nil)
+	album, r := getAlbum(albumKey, nil)
 	if r == newAdd {
-		library.Artists[artistKey] = artist
-	}
-	album, r := getAlbum(artist, albumKey, nil)
-	if r == newAdd {
-		artist.Albums[albumKey] = album
+		library.Albums[albumKey] = album
 	}
 	song := buildSong(path, nil)
-	album.Songs[song.Key] = song
+	album.Songs[song.Path] = song
 }
 
 func addBasicToLibrary(metaData tag.Metadata, path string) {
-	artistKey := sanitizeName(metaData.Artist())
 	albumKey := sanitizeName(metaData.Artist() + "_" + metaData.Album())
-	artist, r := getArtist(artistKey, metaData)
+	album, r := getAlbum(albumKey, metaData)
 	if r == newAdd {
-		library.Artists[artistKey] = artist
-	}
-	album, r := getAlbum(artist, albumKey, metaData)
-	if r == newAdd {
-		artist.Albums[albumKey] = album
+		library.Albums[albumKey] = album
 	}
 	song := buildSong(path, metaData)
-	album.Songs[song.Key] = song
+	album.Songs[song.Path] = song
 }
 
 func sanitizeName(s string) string {
 	return strings.TrimSpace(strings.ToLower(s))
+}
+
+func createSortedArtistList() {
+	assumedLength := float64(len(library.Albums)) / 1.1
+	set := make(map[string]bool, int(assumedLength))
+	for k := range library.Albums {
+		inserting := removePrefixesFromNames(k)
+		set[inserting] = false
+	}
+	library.SortedAlbums = make([]string, len(set))
+	i := 0
+	for k := range set {
+		library.SortedAlbums[i] = k
+		i++
+	}
+
+	sort.Slice(library.SortedAlbums, func(i, j int) bool {
+		return library.SortedAlbums[i] < library.SortedAlbums[j]
+	})
+}
+
+func removePrefixesFromNames(s string) string {
+	prefixes := []string{"the ", "a "}
+	modifiedS := s
+	for _, p := range prefixes {
+		if len(modifiedS) < len(p) {
+			continue
+		}
+
+		slice := modifiedS[0:len(p)]
+		if slice == p {
+			modifiedS = modifiedS[len(p):]
+		}
+	}
+
+	return modifiedS
 }
 
 // SaveLibrary saves the library as JSON
@@ -283,9 +240,17 @@ func AsJson() ([]byte, error) {
 	return json.Marshal(*library)
 }
 
-func GetAllArtists() map[string]Artist {
+// GetAllAlbums returns a list of albums, sorted by artist and album title
+func GetAllAlbums() []Album {
 	if library == nil {
-		return make(map[string]Artist)
+		return make([]Album, 0)
 	}
-	return library.Artists
+	albums := make([]Album, len(library.Albums))
+	i := 0
+	for _, v := range library.SortedAlbums {
+		albums[i] = library.Albums[v]
+		i++
+	}
+
+	return albums
 }

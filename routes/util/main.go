@@ -6,6 +6,9 @@ import (
 )
 
 type RequestHandler func(w http.ResponseWriter, r *http.Request)
+type Route interface {
+	Route() map[string]RequestHandler
+}
 
 const BaseRoute string = "api"
 
