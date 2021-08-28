@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -256,22 +257,23 @@ func GetAllAlbums() []Album {
 }
 
 // GetSong returns the bytes of the song at the specified path, or an empty byte slice if not found
-// todo: refactor once songs aren't buried in albums
 func GetSong(path string) ([]byte, bool) {
-	if library == nil {
+	found := false
+	for _, v := range tags.AcceptableFileTypes {
+		if found = strings.EqualFold(filepath.Ext(path), v); found {
+			break
+		}
+	}
+
+	if !found {
+		log.Println("path was not of a valid type: ", path)
 		return make([]byte, 0), false
 	}
 
-	for _, a := range library.Albums {
-		for k := range a.Songs {
-			if path == k {
-				bs, err := fileio.ReadSingleFile(path)
-				if err != nil {
-					log.Println("error reading file ", err)
-				}
-				return bs, true
-			}
-		}
+	bs, err := fileio.ReadSingleFile(path)
+	if err != nil {
+		log.Println("error reading file ", err)
+		return bs, false
 	}
-	return make([]byte, 0), false
+	return bs, true
 }
