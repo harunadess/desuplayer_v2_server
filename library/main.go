@@ -25,6 +25,8 @@ type MusicLibrary struct {
 
 type Song struct {
 	Title       string
+	AlbumTitle  string
+	AlbumArtist string
 	Artist      string
 	Discnumber  int
 	Tracknumber int
@@ -34,16 +36,25 @@ type Song struct {
 
 type Album struct {
 	Title       string
+	AlbumArtist string
 	Artist      string
 	Genre       string
 	Picturedata []byte
 	Picturetype string
 	Songs       map[string]Song
+	AlbumKey    string
 }
 
 type Artist struct {
 	Name   string
 	Albums map[string]Album
+}
+
+type SongMeta struct {
+	Song
+	Genre       string
+	Picturedata []byte
+	Picturetype string
 }
 
 const (
@@ -113,6 +124,7 @@ func getAlbum(key string, meta tag.Metadata) (Album, int) {
 			Picturedata: []byte{},
 			Picturetype: "",
 			Songs:       make(map[string]Song),
+			AlbumKey:    key,
 		}
 		if meta == nil {
 			album.Title = "Unknown"
@@ -121,6 +133,7 @@ func getAlbum(key string, meta tag.Metadata) (Album, int) {
 			picture := meta.Picture()
 			album.Title = meta.Album()
 			album.Artist = meta.AlbumArtist()
+			album.AlbumArtist = meta.AlbumArtist()
 			if album.Artist == "" {
 				album.Artist = meta.Artist()
 			}
@@ -144,6 +157,9 @@ func buildSong(path string, meta tag.Metadata) Song {
 		song.Discnumber = 0
 		song.Filetype = strings.ToUpper(fType)
 		song.Title = "Unknown"
+		song.Artist = "Unknown"
+		song.AlbumArtist = "Unknown"
+		song.AlbumTitle = "Unknown"
 		song.Tracknumber = 0
 	} else {
 		disc, _ := meta.Disc()
@@ -151,6 +167,9 @@ func buildSong(path string, meta tag.Metadata) Song {
 		song.Discnumber = disc
 		song.Filetype = string(meta.FileType())
 		song.Title = meta.Title()
+		song.Artist = meta.Artist()
+		song.AlbumArtist = meta.AlbumArtist()
+		song.AlbumTitle = meta.Album()
 		song.Tracknumber = track
 	}
 	return song
@@ -167,7 +186,11 @@ func addUnknownToLibrary(path string) {
 }
 
 func addBasicToLibrary(metaData tag.Metadata, path string) {
-	albumKey := sanitizeName(metaData.Artist() + "_" + metaData.Album())
+	artistName := metaData.AlbumArtist()
+	if artistName == "" {
+		artistName = metaData.Artist()
+	}
+	albumKey := sanitizeName(artistName + "_" + metaData.Album())
 	album, r := getAlbum(albumKey, metaData)
 	if r == newAdd {
 		library.Albums[albumKey] = album
@@ -180,7 +203,11 @@ func sanitizeName(s string) string {
 	return strings.TrimSpace(strings.ToLower(s))
 }
 
+// TODO: rewrite this monstrosity
+// it is very gross, you need to make it not gross, i don't care if it's longer
 func createSortedArtistList() {
+	// this is an approximation of the expected size of the map
+	// so that we don't have to reallocate freqeuntly.
 	assumedLength := float64(len(library.Albums)) / 1.1
 	set := make(map[string]bool, int(assumedLength))
 	for k := range library.Albums {
@@ -236,6 +263,20 @@ func LoadLibrary() {
 	}
 }
 
+func loadLibraryForTest(path string) {
+	file, err := fileio.ReadSingleFile(path)
+	if err != nil {
+		log.Println("error reading library file ", err)
+		return
+	}
+	library = &MusicLibrary{}
+
+	err = json.Unmarshal(file, library)
+	if err != nil {
+		log.Println("error unmarshalling json ", err)
+	}
+}
+
 // AsJson returns the library as JSON
 func AsJson() ([]byte, error) {
 	return json.Marshal(*library)
@@ -276,4 +317,40 @@ func GetSong(path string) ([]byte, bool) {
 		return bs, false
 	}
 	return bs, true
+}
+
+func GetSongMeta(path string, albumTitle string, albumArtist string) (SongMeta, bool) {
+	found := false
+	for _, v := range tags.AcceptableFileTypes {
+		if found = strings.EqualFold(filepath.Ext(path), v); found {
+			break
+		}
+	}
+
+	if !found {
+		log.Println("path was not of a valid type: ", path)
+		return SongMeta{}, false
+	}
+
+	albumKey := sanitizeName(albumArtist + "_" + albumTitle)
+	album, ok := library.Albums[albumKey]
+	if !ok {
+		log.Println("did not find album for album key: ", albumKey, albumArtist, albumTitle)
+		return SongMeta{}, false
+	}
+
+	song, ok := album.Songs[path]
+	if !ok {
+		log.Println("did not find song for path: ", path)
+		return SongMeta{}, false
+	}
+
+	meta := SongMeta{
+		Song:        song,
+		Genre:       album.Genre,
+		Picturetype: album.Picturetype,
+		Picturedata: album.Picturedata,
+	}
+
+	return meta, true
 }
