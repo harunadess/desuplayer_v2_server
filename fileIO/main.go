@@ -11,6 +11,7 @@ import (
 )
 
 const concurrentBufferSize int = (1024 * 1024 * 512)
+const createFilePermissions int = 0600
 
 var workingDirectory string
 
@@ -70,7 +71,8 @@ func WriteToJSON(a interface{}, path string) error {
 		RemoveFile(path)
 	}
 
-	err = os.WriteFile(path, JSON, fs.FileMode(os.O_WRONLY))
+	perm := fs.FileMode(createFilePermissions)
+	err = os.WriteFile(path, JSON, perm.Perm())
 	if err != nil {
 		log.Println("failed to write file ", err)
 		return err

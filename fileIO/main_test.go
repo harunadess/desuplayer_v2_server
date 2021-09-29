@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestAbsPath(t *testing.T) {
+func skTestAbsPath(t *testing.T) {
 	const absPath = "/mnt/d/Users/Jorta/Documents/Coding/go/src/github.com/jordanjohnston/desuplayer_v2/fileio"
 	const path = "/library.json"
 	want := absPath + path
@@ -14,7 +14,7 @@ func TestAbsPath(t *testing.T) {
 	}
 }
 
-func TestWriteToJSON(t *testing.T) {
+func skTestWriteToJSON(t *testing.T) {
 	const baseDir = "/mnt/d/Users/Jorta/Music"
 	fileTypesA := []string{".mp3", ".flac"}
 	fileTypesB := []string{".MP3", ".FLAC"}
@@ -32,4 +32,22 @@ func TestWriteToJSON(t *testing.T) {
 	if len(pathsA) != len(pathsB) {
 		t.Error("len(pathsA) != len(pathsB)")
 	}
+}
+
+func TestWriteJSONToFile(t *testing.T) {
+	type foo struct{ bar string }
+
+	f := foo{bar: "hello, world"}
+
+	err := WriteToJSON(f, "test.json")
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = ReadSingleFile("test.json")
+	if err != nil {
+		t.Error(err)
+	}
+
 }
