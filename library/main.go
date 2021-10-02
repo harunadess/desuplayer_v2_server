@@ -99,7 +99,8 @@ func fillLibrary(paths []string) error {
 	for _, path := range paths {
 		metaData, err := tags.ReadTags(path)
 		if err != nil {
-			addUnknownToLibrary(path)
+			log.Printf("failed to read meta for: %v\n", path)
+			// addUnknownToLibrary(path)
 			continue
 		}
 		addBasicToLibrary(metaData, path)
@@ -203,27 +204,14 @@ func sanitizeName(s string) string {
 	return strings.TrimSpace(strings.ToLower(s))
 }
 
-// TODO: rewrite this monstrosity
-// it is very gross, you need to make it not gross, i don't care if it's longer
 func createSortedArtistList() {
-	// this is an approximation of the expected size of the map
-	// so that we don't have to reallocate freqeuntly.
-	assumedLength := float64(len(library.Albums)) / 1.1
-	set := make(map[string]bool, int(assumedLength))
-	for k := range library.Albums {
-		inserting := removePrefixesFromNames(k)
-		set[inserting] = false
-	}
-	library.SortedAlbums = make([]string, len(set))
+	library.SortedAlbums = make([]string, len(library.Albums))
 	i := 0
-	for k := range set {
-		library.SortedAlbums[i] = k
+	for k := range library.Albums {
+		library.SortedAlbums[i] = removePrefixesFromNames(k)
 		i++
 	}
-
-	sort.Slice(library.SortedAlbums, func(i, j int) bool {
-		return library.SortedAlbums[i] < library.SortedAlbums[j]
-	})
+	sort.Strings(library.SortedAlbums)
 }
 
 func removePrefixesFromNames(s string) string {

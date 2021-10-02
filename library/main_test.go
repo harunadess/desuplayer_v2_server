@@ -13,7 +13,7 @@ func skTestBuildLibrary(t *testing.T) {
 	}
 }
 
-func skTestCreatedSortedArtists(t *testing.T) {
+func TestCreatedSortedArtists(t *testing.T) {
 	LoadLibrary()
 	createSortedArtistList()
 	err := SaveLibrary()
@@ -38,7 +38,7 @@ func skTestGetAllAlbums(t *testing.T) {
 }
 */
 
-func TestGetSongMeta(t *testing.T) {
+func skTestGetSongMeta(t *testing.T) {
 	const libraryFilePath = "/mnt/d/Users/Jorta/Documents/Coding/go/src/github.com/jordanjohnston/desuplayer_v2/library.json"
 	const pathToSong = "D:\\Users\\Jorta\\Music\\Yuzuki Yukari\\月の詩 V - ツキノウタ\\03. デイドリィム乙女脳内構想.mp3"
 	const songArtist = "Various Artists"
