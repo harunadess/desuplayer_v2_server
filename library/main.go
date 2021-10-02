@@ -275,11 +275,9 @@ func GetAllAlbums() []Album {
 	if library == nil {
 		return make([]Album, 0)
 	}
-	albums := make([]Album, len(library.Albums))
-	i := 0
-	for _, v := range library.SortedAlbums {
+	albums := make([]Album, len(library.SortedAlbums))
+	for i, v := range library.SortedAlbums {
 		albums[i] = library.Albums[v]
-		i++
 	}
 
 	return albums
