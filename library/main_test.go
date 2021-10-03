@@ -13,7 +13,7 @@ func skTestBuildLibrary(t *testing.T) {
 	}
 }
 
-func TestCreatedSortedArtists(t *testing.T) {
+func skTestCreatedSortedArtists(t *testing.T) {
 	LoadLibrary()
 	createSortedArtistList()
 	err := SaveLibrary()
@@ -22,9 +22,16 @@ func TestCreatedSortedArtists(t *testing.T) {
 	}
 }
 
-func skTestGetAllAlbums(t *testing.T) {
+func TestGetAllAlbums(t *testing.T) {
+	LoadLibrary()
 	albums := GetAllAlbums()
 	fmt.Println(len(albums))
+
+	for _, v := range albums {
+		if v.Title == "" || v.Artist == "" {
+			t.Fatal("property was empty or null")
+		}
+	}
 }
 
 /*

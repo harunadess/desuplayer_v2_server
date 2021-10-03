@@ -100,10 +100,14 @@ func fillLibrary(paths []string) error {
 		metaData, err := tags.ReadTags(path)
 		if err != nil {
 			log.Printf("failed to read meta for: %v\n", path)
-			// addUnknownToLibrary(path)
 			continue
 		}
-		addBasicToLibrary(metaData, path)
+		if hasRequiredMeta(metaData) {
+			addBasicToLibrary(metaData, path)
+		} else {
+			log.Println(metaData.Album(), metaData.Artist(), metaData.Title(), metaData.FileType(), metaData.Format())
+			log.Printf("did not have required meta: %v\n", path)
+		}
 	}
 
 	createSortedArtistList()
@@ -114,6 +118,12 @@ func fillLibrary(paths []string) error {
 	}
 
 	return nil
+}
+
+func hasRequiredMeta(metaData tag.Metadata) bool {
+	return metaData.Album() != "" &&
+		metaData.Artist() != "" &&
+		metaData.Title() != ""
 }
 
 func getAlbum(key string, meta tag.Metadata) (Album, int) {
@@ -275,9 +285,16 @@ func GetAllAlbums() []Album {
 	if library == nil {
 		return make([]Album, 0)
 	}
+
+	// todo: figure out why the fuck this still returns empty albums
+	// it should never fucking return empty albums
+	// why the fucking fuck is it fucking returing fucking empty fucking albums
 	albums := make([]Album, len(library.SortedAlbums))
 	for i, v := range library.SortedAlbums {
-		albums[i] = library.Albums[v]
+		album, ok := library.Albums[v]
+		if ok && album.Title != "" {
+			albums[i] = album
+		}
 	}
 
 	return albums
