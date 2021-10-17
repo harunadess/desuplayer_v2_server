@@ -186,16 +186,6 @@ func buildSong(path string, meta tag.Metadata) Song {
 	return song
 }
 
-func addUnknownToLibrary(path string) {
-	albumKey := "unknown_unknown"
-	album, r := getAlbum(albumKey, nil)
-	if r == newAdd {
-		library.Albums[albumKey] = album
-	}
-	song := buildSong(path, nil)
-	album.Songs[song.Path] = song
-}
-
 func addBasicToLibrary(metaData tag.Metadata, path string) {
 	artistName := metaData.AlbumArtist()
 	if artistName == "" {
@@ -261,20 +251,6 @@ func LoadLibrary() {
 	}
 }
 
-func loadLibraryForTest(path string) {
-	file, err := fileio.ReadSingleFile(path)
-	if err != nil {
-		log.Println("error reading library file ", err)
-		return
-	}
-	library = &MusicLibrary{}
-
-	err = json.Unmarshal(file, library)
-	if err != nil {
-		log.Println("error unmarshalling json ", err)
-	}
-}
-
 // AsJson returns the library as JSON
 func AsJson() ([]byte, error) {
 	return json.Marshal(*library)
@@ -286,18 +262,18 @@ func GetAllAlbums() []Album {
 		return make([]Album, 0)
 	}
 
-	// todo: figure out why the fuck this still returns empty albums
-	// it should never fucking return empty albums
-	// why the fucking fuck is it fucking returing fucking empty fucking albums
 	albums := make([]Album, len(library.SortedAlbums))
-	for i, v := range library.SortedAlbums {
+	index := 0
+	for _, v := range library.SortedAlbums {
 		album, ok := library.Albums[v]
 		if ok && album.Title != "" {
-			albums[i] = album
+			log.Println("adding album", album.Title, album.Artist, album.AlbumKey)
+			albums[index] = album
+			index++
 		}
 	}
 
-	return albums
+	return albums[0:index]
 }
 
 // GetSong returns the bytes of the song at the specified path, or an empty byte slice if not found
