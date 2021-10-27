@@ -18,6 +18,7 @@ import (
 // It contains a map of keys (artistName_albumTitle) -> Album
 // It also contains a list of sorted keys (aristName_albumTitle)
 type MusicLibrary struct {
+	BasePath     string
 	Albums       map[string]Album
 	SortedAlbums []string
 	Playlists    map[string][]Song
@@ -67,6 +68,7 @@ const imageSize = 200
 // todo: there is no wav, need to fork taglib and write yours
 
 var library *MusicLibrary
+var paths *[]string
 
 // UnloadLibrary clears the current library
 func UnloadLibrary() {
@@ -75,27 +77,42 @@ func UnloadLibrary() {
 
 // BuildLibrary creates the library using the basePath
 // passed in.
+
+// Todo: some kinda diffing
+// probably, take a copy of all valid paths that you can scrape
+// then, store that (seperately?) in a json file
+// then just load and check that for differences?
 func BuildLibrary(basePath string) error {
 	log.Println("scraping directory:", basePath)
-	paths, err := fileio.ScrapeDirectory(basePath, tags.AcceptableFileTypes)
+	filePaths, err := fileio.ScrapeDirectory(basePath, tags.AcceptableFileTypes)
 	if err != nil {
 		return errors.New("Error scraping directory: " + err.Error())
 	}
-	log.Printf("got %v files\n", len(paths))
+	log.Printf("got %v files\n", len(filePaths))
+
+	err = fileio.WriteToJSON(filePaths, fileio.AbsPath("/paths.json"))
+	if err != nil {
+		log.Println("failed to save paths: ", err)
+	}
 
 	library = &MusicLibrary{
+		BasePath:  basePath,
 		Albums:    make(map[string]Album),
 		Playlists: make(map[string][]Song),
 	}
-	err = fillLibrary(paths)
+	fillLibrary(filePaths)
+
+	err = SaveLibrary()
 	if err != nil {
-		return errors.New("Error filling library: " + err.Error())
+		log.Println("failed to save library: ", err)
+		return err
 	}
 
+	paths = &filePaths
 	return nil
 }
 
-func fillLibrary(paths []string) error {
+func fillLibrary(paths []string) {
 	for _, path := range paths {
 		metaData, err := tags.ReadTags(path)
 		if err != nil {
@@ -111,13 +128,6 @@ func fillLibrary(paths []string) error {
 	}
 
 	createSortedArtistList()
-
-	err := SaveLibrary()
-	if err != nil {
-		log.Println("failed to save library: ", err)
-	}
-
-	return nil
 }
 
 func hasRequiredMeta(metaData tag.Metadata) bool {
@@ -247,7 +257,20 @@ func LoadLibrary() {
 
 	err = json.Unmarshal(file, library)
 	if err != nil {
-		log.Println("error unmarshalling json ", err)
+		log.Println("error unmarshalling library json ", err)
+		return
+	}
+
+	pathsFile, err := fileio.ReadSingleFile(fileio.AbsPath("/paths.json"))
+	if err != nil {
+		log.Println("error reading paths file ", err)
+		return
+	}
+	paths = &[]string{}
+
+	err = json.Unmarshal(pathsFile, paths)
+	if err != nil {
+		log.Println("error unmarshalling paths json ", err)
 	}
 }
 
@@ -332,4 +355,49 @@ func GetSongMeta(path string, albumTitle string, albumArtist string) (SongMeta, 
 	}
 
 	return meta, true
+}
+
+func includes(s []string, item string) bool {
+	for _, v := range s {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+func CheckLibraryDiff() error {
+	if library == nil {
+		return errors.New("library not loaded")
+	}
+
+	filePaths, err := fileio.ScrapeDirectory(library.BasePath, tags.AcceptableFileTypes)
+	if err != nil {
+		return errors.New("Error scraping directory: " + err.Error())
+	}
+
+	storedPaths := (*paths)[:]
+	sort.Strings(storedPaths)
+	sort.Strings(filePaths)
+
+	difference := make([]string, 0)
+	// need the difference both ways..
+	// but there is probably a more efficient way to do this.
+	for _, v := range filePaths {
+		if !includes(*paths, v) {
+			difference = append(difference, v)
+		}
+	}
+
+	for _, v := range *paths {
+		if !includes(filePaths, v) {
+			difference = append(difference, v)
+		}
+	}
+
+	for _, v := range difference {
+		log.Println("was in one but not the other: ", v)
+	}
+
+	return nil
 }

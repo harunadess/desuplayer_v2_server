@@ -2,4 +2,6 @@
 server
 *.exe
 library.json
+paths.json
 .vscode/
+.DS_Store

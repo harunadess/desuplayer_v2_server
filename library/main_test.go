@@ -6,7 +6,7 @@ import (
 )
 
 func skTestBuildLibrary(t *testing.T) {
-	const basePath = "/mnt/d/Jorta/Music/iTunes/iTunes Media/Music"
+	const basePath = "/Users/jordan/Music"
 	err := BuildLibrary(basePath)
 	if err != nil {
 		t.Error(err)
@@ -22,7 +22,7 @@ func skTestCreatedSortedArtists(t *testing.T) {
 	}
 }
 
-func TestGetAllAlbums(t *testing.T) {
+func skTestGetAllAlbums(t *testing.T) {
 	LoadLibrary()
 	albums := GetAllAlbums()
 	fmt.Println(len(albums))
@@ -31,5 +31,14 @@ func TestGetAllAlbums(t *testing.T) {
 		if v.Title == "" && v.Artist == "" {
 			t.Fatal("property was empty or null", v.Title, v.Artist)
 		}
+	}
+}
+
+func TestCheckLibraryDiff(t *testing.T) {
+	LoadLibrary()
+	err := CheckLibraryDiff()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 }
