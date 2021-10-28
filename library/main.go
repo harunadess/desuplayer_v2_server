@@ -358,12 +358,15 @@ func GetSongMeta(path string, albumTitle string, albumArtist string) (SongMeta, 
 }
 
 func includes(s []string, item string) bool {
-	for _, v := range s {
-		if v == item {
-			return true
-		}
-	}
-	return false
+	// for _, v := range s {
+	// 	if v == item {
+	// 		return true
+	// 	}
+	// }
+	// return false
+	// idx := sort.SearchStrings(s, item)
+	// return true
+	return sort.SearchStrings(s, item) != len(s)
 }
 
 func CheckLibraryDiff() error {
@@ -380,23 +383,30 @@ func CheckLibraryDiff() error {
 	sort.Strings(storedPaths)
 	sort.Strings(filePaths)
 
-	difference := make([]string, 0)
+	added := make([]string, 0)
+	removed := make([]string, 0)
 	// need the difference both ways..
 	// but there is probably a more efficient way to do this.
+
+	// checks current files are in stored paths
 	for _, v := range filePaths {
-		if !includes(*paths, v) {
-			difference = append(difference, v)
+		if !includes(storedPaths, v) {
+			added = append(added, v)
 		}
 	}
 
-	for _, v := range *paths {
+	for _, v := range storedPaths {
 		if !includes(filePaths, v) {
-			difference = append(difference, v)
+			removed = append(removed, v)
 		}
 	}
 
-	for _, v := range difference {
-		log.Println("was in one but not the other: ", v)
+	for _, v := range added {
+		log.Println("added: ", v)
+	}
+
+	for _, v := range removed {
+		log.Println("removed: ", v)
 	}
 
 	return nil
