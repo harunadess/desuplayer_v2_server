@@ -1,6 +1,7 @@
 # don't commit
 server
 *.exe
+desuplayer_v2
 library.json
 paths.json
 .vscode/
