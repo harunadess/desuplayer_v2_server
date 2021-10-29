@@ -2,10 +2,21 @@
 Server for [Desuplayer V2](https://github.com/jordanjohnston/desuplayer_v2_frontend) but could be repurposed for any frontend you want.
 
 
-## General Info
-
 Basic http backend for getting meta data from music files only some formats supported - namely .wav is not supported yet
 and then serving those files found via api requests and blobs.
+
+
+## Releases
+- Check releases tab and see if there is one (at time of writing there isn't).
+
+## Manual Build/Installation
+- Have [go (golang)](https://golang.org/dl/) installed
+- Run `go build` in the root directory
+- Run the executable (probably called main)
+  - Alternatively, you can run `mv main desuplayer_v2` after to have a nicer named executable
+  - Super alternatively, you can run `go install` instead and that will add it to your path
+    - At some point, I might get around to figuring out how you name the executable properly.
+- Server will listen on **localhost:4444**, and accept incoming requests from **localhost:8080**
 
 ### Endpoints
 - *library/build*: builds library "database"
@@ -22,15 +33,6 @@ and then serving those files found via api requests and blobs.
     - path: path to song to get
     - artist: artist of song
     - album: album of song
-
-### Deployment
-
-- Have go (golang) installed
-- Run `go build` in the root directory
-- Run the executable (probably called main)
-  - Alternatively, you can run `mv main desuplayer_v2` after to have a nicer named executable
-- Server will listen on localhost:4444
-
 
 ## Todo:
 
