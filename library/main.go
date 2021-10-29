@@ -241,6 +241,40 @@ func removePrefixesFromNames(s string) string {
 	return modifiedS
 }
 
+func removeFromLibrary(toRemove []string) {
+	ids := make([]int, 0, len(toRemove))
+	for _, v := range toRemove {
+		for i := range *paths {
+			if (*paths)[i] == v {
+				ids = append(ids, i)
+			}
+		}
+	}
+
+	n := 0
+	for _, v := range ids {
+		for i, x := range *paths {
+			if i != v {
+				(*paths)[n] = x
+			}
+		}
+	}
+
+	// removed from paths
+	// but what about other stuff?
+	for k, v := range library.Albums {
+		for ks := range v.Songs {
+			if includes(toRemove, ks) {
+				delete(v.Songs, ks)
+			}
+		}
+		if len(v.Songs) == 0 {
+			delete(library.Albums, k)
+			// todo: remove from SortedAlbums
+		}
+	}
+}
+
 // SaveLibrary saves the library as JSON
 func SaveLibrary() error {
 	return fileio.WriteToJSON(*library, fileio.AbsPath("/library.json"))
@@ -362,22 +396,18 @@ func includes(s []string, item string) bool {
 	return id < len(s) && s[id] == item
 }
 
-func CheckLibraryDiff() error {
-	if library == nil {
-		return errors.New("library not loaded")
-	}
-
+func getDiff() (added []string, removed []string, err error) {
 	filePaths, err := fileio.ScrapeDirectory(library.BasePath, tags.AcceptableFileTypes)
 	if err != nil {
-		return errors.New("Error scraping directory: " + err.Error())
+		return make([]string, 0), make([]string, 0), errors.New("Error scraping directory: " + err.Error())
 	}
 
 	storedPaths := (*paths)[:]
 	sort.Strings(storedPaths)
 	sort.Strings(filePaths)
 
-	added := make([]string, 0)
-	removed := make([]string, 0)
+	added = make([]string, 0)
+	removed = make([]string, 0)
 
 	// checks current files are in stored paths
 	for _, v := range filePaths {
@@ -392,15 +422,21 @@ func CheckLibraryDiff() error {
 		}
 	}
 
-	// todo: add to library
-	for _, v := range added {
-		log.Println("added: ", v)
+	return added, removed, nil
+}
+
+func CheckLibraryDiff() error {
+	if library == nil {
+		return errors.New("library not loaded")
 	}
 
-	// todo: remove from library
-	for _, v := range removed {
-		log.Println("removed: ", v)
+	added, removed, err := getDiff()
+	if err != nil {
+		return err
 	}
+
+	fillLibrary(added)
+	removeFromLibrary(removed)
 
 	return nil
 }
