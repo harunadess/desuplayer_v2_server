@@ -1,11 +1,27 @@
 # desuplayer v2 (server)
-Server for [Desuplayer V2](https://github.com/jordanjohnston/desuplayer_v2_frontend)
+Server for [Desuplayer V2](https://github.com/jordanjohnston/desuplayer_v2_frontend) but could be repurposed for any frontend you want.
 
 
 ## General Info
 
 Basic http backend for getting meta data from music files only some formats supported - namely .wav is not supported yet
-and then serving files found via blobs.
+and then serving those files found via api requests and blobs.
+
+### Endpoints
+- *library/build*: builds library "database"
+  - params:
+    - musicDir: base directory to get files from
+- *music/getAllArtists (to be renamed)*: gets all albums in library
+  - params:
+    - (none)
+- *music/getSong*: gets song data (i.e. the raw bytes to then be used/played somewhere)
+  - params:
+    - path: path to song to get
+- *music/getSongMeta*: gets song meta data (i.e. the album art, genre etc.)
+  - params:
+    - path: path to song to get
+    - artist: artist of song
+    - album: album of song
 
 ### Deployment
 
