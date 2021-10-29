@@ -358,15 +358,8 @@ func GetSongMeta(path string, albumTitle string, albumArtist string) (SongMeta, 
 }
 
 func includes(s []string, item string) bool {
-	// for _, v := range s {
-	// 	if v == item {
-	// 		return true
-	// 	}
-	// }
-	// return false
-	// idx := sort.SearchStrings(s, item)
-	// return true
-	return sort.SearchStrings(s, item) != len(s)
+	id := sort.SearchStrings(s, item)
+	return id < len(s) && s[id] == item
 }
 
 func CheckLibraryDiff() error {
@@ -385,8 +378,6 @@ func CheckLibraryDiff() error {
 
 	added := make([]string, 0)
 	removed := make([]string, 0)
-	// need the difference both ways..
-	// but there is probably a more efficient way to do this.
 
 	// checks current files are in stored paths
 	for _, v := range filePaths {
@@ -401,10 +392,12 @@ func CheckLibraryDiff() error {
 		}
 	}
 
+	// todo: add to library
 	for _, v := range added {
 		log.Println("added: ", v)
 	}
 
+	// todo: remove from library
 	for _, v := range removed {
 		log.Println("removed: ", v)
 	}
